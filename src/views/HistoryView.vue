@@ -25,7 +25,7 @@
         </div>
         
         <div class="flex gap-2 items-center">
-          <DatePicker :model-value="selectedDate" @select="handleDateSelect" @today="handleTodaySelect" />
+          <DatePicker :model-value="selectedDate" @select="handleDateSelect" @today="handleTodaySelect" @dateChange="handleDateChange" />
           <button @click="toggleTheme" class="p-2 rounded-lg border border-gray-300 dark:border-gray-600 hover:bg-gray-100 dark:hover:bg-gray-700" :title="darkMode ? t('lightMode') : t('darkMode')">
             <svg v-if="darkMode" class="w-5 h-5 text-yellow-400" fill="currentColor" viewBox="0 0 20 20">
               <path fill-rule="evenodd" d="M10 2a1 1 0 011 1v1a1 1 0 11-2 0V3a1 1 0 011-1zm4 8a4 4 0 11-8 0 4 4 0 018 0zm-.464 4.95l.707.707a1 1 0 001.414-1.414l-.707-.707a1 1 0 00-1.414 1.414zm2.12-10.607a1 1 0 010 1.414l-.706.707a1 1 0 11-1.414-1.414l.707-.707a1 1 0 011.414 0zM17 11a1 1 0 100-2h-1a1 1 0 100 2h1zm-7 4a1 1 0 011 1v1a1 1 0 11-2 0v-1a1 1 0 011-1zM5.05 6.464A1 1 0 106.465 5.05l-.708-.707a1 1 0 00-1.414 1.414l.707.707zm1.414 8.486l-.707.707a1 1 0 01-1.414-1.414l.707-.707a1 1 0 011.414 1.414zM4 11a1 1 0 100-2H3a1 1 0 000 2h1z" clip-rule="evenodd"></path>
@@ -66,7 +66,7 @@
       </div>
 
       <div v-else class="space-y-0">
-        <div v-for="(group, date) in historyGroups" :key="date" class="history-group">
+        <div v-for="(group, date) in historyGroups" :key="date" class="history-group" :data-date-key="date">
           <h2 class="date-header">{{ formatDateHeading(date) }}</h2>
           <div class="divide-y divide-gray-100 dark:divide-gray-700">
             <div v-for="item in group" :key="item.id" class="history-item">
@@ -86,11 +86,12 @@
         </div>
       </div>
 
-      <div v-if="hasMore" class="mt-6 text-center">
-        <button @click="loadMore" :disabled="loadingMore" class="btn-primary px-6 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-lg disabled:opacity-50">
-          <span v-if="loadingMore">{{ t('loading') }}...</span>
-          <span v-else>{{ t('loadMore') }}</span>
-        </button>
+      <div ref="loadMoreTriggerTop" v-show="historyItems.length > 0 && selectedDate" class="mt-6 text-center h-10">
+      </div>
+      <div ref="loadMoreTrigger" v-show="historyItems.length > 0" class="mt-6 text-center h-10">
+      </div>
+      <div v-if="loadingMore" class="mt-6 text-center">
+        <span class="text-gray-500 dark:text-gray-400">{{ t('loading') }}...</span>
       </div>
     </main>
 
@@ -120,6 +121,8 @@ export default {
   setup() {
     const t = inject('t')
     const searchInput = ref(null)
+    const loadMoreTrigger = ref(null)
+    const loadMoreTriggerTop = ref(null)
     const historyItems = ref([])
     const searchQuery = ref('')
     const loading = ref(false)
@@ -129,6 +132,7 @@ export default {
     const selectedRange = ref('all')
     const showConfirmModal = ref(false)
     const currentPage = ref(1)
+    const nextPage = ref(1)
     const itemsPerPage = ref(50)
     const totalHistoryCount = ref(0)
     const isSearching = ref(false)
@@ -245,7 +249,7 @@ export default {
       setTimeout(() => { showToast.value = false }, 3000)
     }
 
-    const loadHistory = async (page = 1, append = false) => {
+    const loadHistory = async (page = 1, append = false, loadNext = false) => {
       if (page === 1) loading.value = true
       else loadingMore.value = true
       
@@ -253,10 +257,17 @@ export default {
         const text = searchQuery.value.trim()
         let startTime = 0, endTime = Date.now()
         
-        if (selectedDate.value) {
+        if (selectedDate.value && !loadNext) {
           const date = new Date(selectedDate.value)
-          startTime = new Date(date.setHours(0, 0, 0, 0)).getTime()
-          endTime = new Date(date.setHours(23, 59, 59, 999)).getTime()
+          console.log('selectedDate query:', { selectedDate: selectedDate.value, date: date.toISOString() })
+          const year = date.getFullYear()
+          const month = date.getMonth()
+          const day = date.getDate()
+          const start = new Date(year, month, day, 0, 0, 0, 0)
+          const end = new Date(year, month, day, 23, 59, 59, 999)
+          console.log('selectedDate range:', { start: start.toISOString(), end: end.toISOString() })
+          startTime = start.getTime()
+          endTime = end.getTime()
         } else if (selectedRange.value === 'today') {
           startTime = new Date(new Date().setHours(0, 0, 0, 0)).getTime()
         } else if (selectedRange.value === 'yesterday') {
@@ -274,13 +285,54 @@ export default {
           startTime = monthAgo.getTime()
         }
         
-        const results = await chrome.history.search({ text, startTime, endTime, maxResults: page * itemsPerPage.value })
-        const sortedResults = results.sort((a, b) => b.lastVisitTime - a.lastVisitTime)
+        let maxResults = itemsPerPage.value
+        let appendEndTime = null
+        let customStartTime = null
+        let customEndTime = null
         
-        if (append) historyItems.value = [...historyItems.value, ...sortedResults]
-        else historyItems.value = sortedResults
+        if (append && !loadNext && historyItems.value.length > 0) {
+          const lastItem = historyItems.value[historyItems.value.length - 1]
+          appendEndTime = lastItem.lastVisitTime
+        }
         
-        if (page === 1) totalHistoryCount.value = results.length
+        if (loadNext && selectedDate.value && historyItems.value.length > 0) {
+          const firstItem = historyItems.value[0]
+          customStartTime = firstItem.lastVisitTime
+          customEndTime = Date.now()
+          maxResults = itemsPerPage.value
+        }
+        
+        const queryStartTime = customStartTime !== null ? customStartTime : startTime
+        const queryEndTime = customEndTime !== null ? customEndTime : (appendEndTime || endTime)
+        
+        const results = await chrome.history.search({ text, startTime: queryStartTime, endTime: queryEndTime, maxResults: maxResults })
+        console.log('loadHistory:', { page, append, loadNext, resultsLength: results.length, maxResults, 
+          queryStartTime: queryStartTime ? new Date(queryStartTime).toISOString() : '0',
+          queryEndTime: new Date(queryEndTime).toISOString(),
+          firstItemTimestamp: historyItems.value[0] ? new Date(historyItems.value[0].lastVisitTime).toISOString() : 'N/A'
+        })
+        let sortedResults = results.sort((a, b) => b.lastVisitTime - a.lastVisitTime)
+        
+        if (loadNext && selectedDate.value && historyItems.value.length > 0) {
+          const firstTimestamp = historyItems.value[0].lastVisitTime
+          console.log('loadNext filter:', { firstTimestamp, beforeFilter: sortedResults.length })
+          sortedResults = sortedResults.filter(item => item.lastVisitTime > firstTimestamp)
+          console.log('loadNext filter after:', sortedResults.length)
+          if (sortedResults.length > 0) {
+            historyItems.value = [...sortedResults, ...historyItems.value]
+          }
+        } else if (append) {
+          historyItems.value = [...historyItems.value, ...sortedResults]
+        } else {
+          historyItems.value = sortedResults
+        }
+        
+        const hasMoreRecords = sortedResults.length >= itemsPerPage.value
+        if (page === 1) {
+          totalHistoryCount.value = hasMoreRecords ? itemsPerPage.value + 1 : sortedResults.length
+        } else if (append && hasMoreRecords) {
+          totalHistoryCount.value = historyItems.value.length + 1
+        }
       } catch (error) {
         console.error('Error loading history:', error)
         showToastMessage(t('errorLoadingHistory'))
@@ -307,7 +359,29 @@ export default {
       selectedDate.value = date
       selectedRange.value = 'all'
       currentPage.value = 1
-      loadHistory(1, false)
+      loadHistory(1, false).then(() => {
+        scrollToDateGroup(date)
+      })
+    }
+
+    const handleDateChange = (date) => {
+      selectedDate.value = date
+      selectedRange.value = 'all'
+      currentPage.value = 1
+      loadHistory(1, false).then(() => {
+        scrollToDateGroup(date)
+      })
+    }
+
+    const scrollToDateGroup = (date) => {
+      nextTick(() => {
+        const targetDate = new Date(date)
+        const dateKey = new Date(targetDate.getFullYear(), targetDate.getMonth(), targetDate.getDate()).setHours(0, 0, 0, 0)
+        const element = document.querySelector(`[data-date-key="${dateKey}"]`)
+        if (element) {
+          element.scrollIntoView({ behavior: 'auto', block: 'start' })
+        }
+      })
     }
 
     const handleTodaySelect = () => {
@@ -326,6 +400,12 @@ export default {
     const loadMore = async () => {
       currentPage.value++
       await loadHistory(currentPage.value, true)
+    }
+
+    const loadMoreNext = async () => {
+      if (!selectedDate.value) return
+      nextPage.value++
+      await loadHistory(nextPage.value, true, true)
     }
 
     const confirmClearHistory = () => { showConfirmModal.value = true }
@@ -365,7 +445,11 @@ export default {
       return Object.keys(groups).sort((a, b) => b - a).reduce((obj, key) => { obj[key] = groups[key]; return obj }, {})
     })
 
-    const hasMore = computed(() => historyItems.value.length < totalHistoryCount.value)
+    const hasMore = computed(() => {
+      const result = historyItems.value.length < totalHistoryCount.value
+      console.log('hasMore computed:', { historyLength: historyItems.value.length, totalCount: totalHistoryCount.value, hasMore: result })
+      return result
+    })
     const refreshHistory = () => { if (searchQuery.value === '' && !selectedDate.value) loadHistory() }
 
     onMounted(() => {
@@ -373,6 +457,31 @@ export default {
       loadHistory()
       nextTick(() => {
         searchInput.value?.focus()
+        
+        const observer = new IntersectionObserver((entries) => {
+          console.log('IntersectionObserver:', entries[0]?.isIntersecting, 'hasMore:', hasMore.value, 'loadingMore:', loadingMore.value)
+          if (entries[0]?.isIntersecting && !loadingMore.value && hasMore.value) {
+            console.log('Loading more...')
+            loadMore()
+          }
+        }, { rootMargin: '100px' })
+        
+        const observerTop = new IntersectionObserver((entries) => {
+          console.log('IntersectionObserverTop:', entries[0]?.isIntersecting, 'loadingMore:', loadingMore.value)
+          if (entries[0]?.isIntersecting && !loadingMore.value && selectedDate.value) {
+            console.log('Loading more next...')
+            loadMoreNext()
+          }
+        }, { rootMargin: '100px' })
+        
+        if (loadMoreTrigger.value) {
+          console.log('Observing loadMoreTrigger')
+          observer.observe(loadMoreTrigger.value)
+        }
+        if (loadMoreTriggerTop.value) {
+          console.log('Observing loadMoreTriggerTop')
+          observerTop.observe(loadMoreTriggerTop.value)
+        }
       })
       systemThemeListener.value = window.matchMedia('(prefers-color-scheme: dark)')
       systemThemeListener.value.addEventListener('change', (e) => {
@@ -391,11 +500,13 @@ export default {
 
     return {
       searchInput,
+      loadMoreTrigger,
+      loadMoreTriggerTop,
       historyItems, historyGroups, searchQuery, loading, loadingMore, darkMode, selectedDate, selectedRange,
       showConfirmModal, totalHistoryCount, hasMore, isSearching, showToast, toastMessage,
       getFaviconUrl, handleFaviconError, formatDateHeading, formatTime, highlightText, t,
-      handleSearchInput, clearSearch, handleDateSelect, handleTodaySelect, handleRangeChange,
-      loadMore, confirmClearHistory, cancelClearHistory, executeClearHistory, deleteSingleHistory, toggleTheme
+      handleSearchInput, clearSearch, handleDateSelect, handleDateChange, handleTodaySelect, handleRangeChange, scrollToDateGroup,
+      loadMore, loadMoreNext, confirmClearHistory, cancelClearHistory, executeClearHistory, deleteSingleHistory, toggleTheme
     }
   }
 }
@@ -435,6 +546,7 @@ export default {
 
 .history-group {
   margin-bottom: 0;
+  scroll-margin-top: 72px;
 }
 
 .date-header {

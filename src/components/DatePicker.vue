@@ -1,19 +1,29 @@
 <template>
   <div class="datepicker-wrapper">
     <div class="datepicker-input-group">
-      <button @click="toggleCalendar" class="datepicker-toggle-btn" title="Select date">
+      <div class="datepicker-calendar-icon" title="Calendar">
         <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
+        </svg>
+      </div>
+      <button @click="prevDay" class="datepicker-nav-day-btn" title="Previous day">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path>
         </svg>
       </button>
       <input
         type="text"
         :value="formattedDate"
-        placeholder="Select date"
+        :placeholder="placeholderText"
         readonly
         @click="toggleCalendar"
         class="datepicker-input"
       />
+      <button @click="nextDay" class="datepicker-nav-day-btn" title="Next day">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path>
+        </svg>
+      </button>
       <button @click="goToToday" class="datepicker-today-btn">
         Today
       </button>
@@ -48,15 +58,16 @@
 </template>
 
 <script>
-import { ref, computed, watch, onMounted, onUnmounted } from 'vue';
+import { ref, computed, watch, onMounted, onUnmounted, inject } from 'vue';
 
 export default {
   name: 'DatePicker',
-  emits: ['select', 'today'],
+  emits: ['select', 'today', 'dateChange'],
   props: {
     modelValue: { type: Date, default: null }
   },
   setup(props, { emit }) {
+    const t = inject('t')
     const showCalendar = ref(false);
     const currentDate = ref(new Date());
     const selectedDate = ref(props.modelValue);
@@ -67,6 +78,8 @@ export default {
       if (!selectedDate.value) return '';
       return selectedDate.value.toLocaleDateString();
     });
+
+    const placeholderText = computed(() => t.value ? t.value('selectDate') : 'Select date');
 
     const currentMonthYear = computed(() => {
       return currentDate.value.toLocaleDateString('en-US', {
@@ -127,6 +140,31 @@ export default {
       currentDate.value = new Date(today);
       showCalendar.value = false;
       emit('today', today);
+      emit('dateChange', today);
+    };
+
+    const prevDay = () => {
+      const current = selectedDate.value || new Date();
+      const prev = new Date(current);
+      prev.setDate(prev.getDate() - 1);
+      selectedDate.value = prev;
+      currentDate.value = new Date(prev);
+      emit('select', prev);
+      emit('dateChange', prev);
+    };
+
+    const nextDay = () => {
+      const current = selectedDate.value || new Date();
+      const next = new Date(current);
+      next.setDate(next.getDate() + 1);
+      const today = new Date();
+      today.setHours(23, 59, 59, 999);
+      if (next <= today) {
+        selectedDate.value = next;
+        currentDate.value = new Date(next);
+        emit('select', next);
+        emit('dateChange', next);
+      }
     };
 
     const prevMonth = () => {
@@ -181,6 +219,8 @@ export default {
       toggleCalendar,
       selectDate,
       goToToday,
+      prevDay,
+      nextDay,
       prevMonth,
       nextMonth
     };
@@ -214,6 +254,51 @@ export default {
   background-color: #374151;
   border-color: #4b5563;
   color: #f3f4f6;
+}
+
+.datepicker-nav-day-btn {
+  padding: 8px;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  background-color: white;
+  color: #6b7280;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s;
+}
+
+.dark .datepicker-nav-day-btn {
+  background-color: #374151;
+  border-color: #4b5563;
+  color: #9ca3af;
+}
+
+.datepicker-nav-day-btn:hover {
+  background-color: #f3f4f6;
+  border-color: #9ca3af;
+}
+
+.dark .datepicker-nav-day-btn:hover {
+  background-color: #4b5563;
+}
+
+.datepicker-calendar-icon {
+  padding: 8px;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  background-color: white;
+  color: #6b7280;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.dark .datepicker-calendar-icon {
+  background-color: #374151;
+  border-color: #4b5563;
+  color: #9ca3af;
 }
 
 .datepicker-toggle-btn {
