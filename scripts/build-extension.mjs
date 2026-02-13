@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
 /**
- * Build script for Vue Better History Chrome Extension
+ * Build script for My Better History Chrome Extension
  * This script prepares the extension for packaging
  */
 
@@ -18,7 +18,7 @@ const publicDir = path.join(projectRoot, 'public');
 const manifestPath = path.join(projectRoot, 'manifest.json');
 const backgroundPath = path.join(projectRoot, 'background.js');
 
-console.log('Building Vue Better History extension...');
+console.log('Building My Better History extension...');
 
 if (!fs.existsSync(distDir)) {
   fs.mkdirSync(distDir, { recursive: true });

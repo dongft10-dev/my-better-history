@@ -1,6 +1,6 @@
 # Extension Icons
 
-This directory contains the icon files for the Vue Better History Chrome Extension.
+This directory contains the icon files for the My Better History Chrome Extension.
 
 ## Required Icons
 

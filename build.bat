@@ -1,7 +1,7 @@
 @echo off
 setlocal
 
-echo Packing Vue Better History extension...
+echo Packing My Better History extension...
 
 :: Check if npm is available
 where npm >nul 2>nul

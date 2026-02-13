@@ -1,7 +1,7 @@
 @echo off
 setlocal
 
-echo Cleaning Vue Better History build artifacts...
+echo Cleaning My Better History build artifacts...
 
 :: Remove dist directory
 if exist "dist" (

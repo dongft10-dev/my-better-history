@@ -114,7 +114,7 @@ export function useLocalization() {
   const translations = {
     en: {
       message: {
-        title: 'Vue Better History',
+        title: 'My Better History',
         description: 'Modern history manager for Chrome',
         searchPlaceholder: 'Search history...',
         today: 'Today',
