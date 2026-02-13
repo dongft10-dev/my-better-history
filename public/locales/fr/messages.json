@@ -1,0 +1,29 @@
+{
+  "application_description": {
+    "message": "Gestionnaire d'historique moderne pour Chrome utilisant Vue 3"
+  },
+  "application_title": {
+    "message": "Vue Better History"
+  },
+  "created_by": {
+    "message": "Créé par"
+  },
+  "history_clear_all": {
+    "message": "Tout effacer"
+  },
+  "history_recent": {
+    "message": "Historique récent"
+  },
+  "history_view_more": {
+    "message": "Voir l'historique complet"
+  },
+  "search_btn": {
+    "message": "Rechercher dans l'historique"
+  },
+  "search_placeholder": {
+    "message": "Rechercher dans l'historique"
+  },
+  "warning_history_clear": {
+    "message": "Êtes-vous sûr de vouloir effacer tout l'historique ?"
+  }
+}

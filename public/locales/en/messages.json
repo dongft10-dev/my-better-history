@@ -1,0 +1,29 @@
+{
+  "application_description": {
+    "message": "Modern history manager for Chrome using Vue 3"
+  },
+  "application_title": {
+    "message": "Vue Better History"
+  },
+  "created_by": {
+    "message": "Created by"
+  },
+  "history_clear_all": {
+    "message": "Clear all"
+  },
+  "history_recent": {
+    "message": "Recent history"
+  },
+  "history_view_more": {
+    "message": "View full history"
+  },
+  "search_btn": {
+    "message": "Search history"
+  },
+  "search_placeholder": {
+    "message": "Search in history"
+  },
+  "warning_history_clear": {
+    "message": "Are you sure that you want to clear all history?"
+  }
+}

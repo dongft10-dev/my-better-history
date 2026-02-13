@@ -1,0 +1,29 @@
+{
+  "application_description": {
+    "message": "使用Vue 3构建的现代化Chrome历史记录管理器"
+  },
+  "application_title": {
+    "message": "Vue 更好的历史记录"
+  },
+  "created_by": {
+    "message": "创建者"
+  },
+  "history_clear_all": {
+    "message": "全部清除"
+  },
+  "history_recent": {
+    "message": "最近历史"
+  },
+  "history_view_more": {
+    "message": "查看完整历史"
+  },
+  "search_btn": {
+    "message": "搜索历史"
+  },
+  "search_placeholder": {
+    "message": "在历史记录中搜索"
+  },
+  "warning_history_clear": {
+    "message": "您确定要清除所有历史记录吗？"
+  }
+}
