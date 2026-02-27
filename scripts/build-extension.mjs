@@ -60,6 +60,12 @@ async function buildExtension() {
       console.warn('Warning: manifest.json not found in project root');
     }
     
+    const faviconPath = path.join(projectRoot, 'favicon.ico');
+    if (fs.existsSync(faviconPath)) {
+      fs.copyFileSync(faviconPath, path.join(distDir, 'favicon.ico'));
+      console.log('Favicon copied to dist/');
+    }
+    
     if (fs.existsSync(backgroundPath)) {
       fs.copyFileSync(backgroundPath, path.join(distDir, 'background.js'));
       console.log('Background script copied to dist/');

@@ -41,7 +41,7 @@
     "service_worker": "background.js"
   },
   "content_security_policy": {
-    "extension_pages": "script-src 'self'; img-src 'self' data: https://www.google.com; object-src 'self'"
+    "extension_pages": "script-src 'self'; img-src 'self' data: https://www.google.com https://favicone.com https://icon.horse https://favicon.yandex.net https://api.faviconkit.com https://*.gstatic.com; object-src 'self'"
   },
   "default_locale": "en"
 }

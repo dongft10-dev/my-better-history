@@ -1,760 +1,1039 @@
 <template>
-  <div class="history-container bg-gray-50 dark:bg-gray-900 min-h-screen">
-    <header class="header-bar bg-white dark:bg-gray-800 shadow-sm p-4">
-      <div class="max-w-7xl mx-auto flex flex-col md:flex-row gap-4 items-center">
-        <h1 class="text-xl font-bold text-gray-800 dark:text-white flex-1">
-          {{ t('title') }}
-        </h1>
-        
-        <div class="relative flex-1 max-w-xl">
+  <div class="history-view">
+    <header class="header">
+      <div class="header-row">
+        <h1 class="title">历史记录</h1>
+        <div class="search-container">
           <input
-            ref="searchInput"
+            ref="searchInputRef"
             v-model="searchQuery"
-            :placeholder="t('searchPlaceholder')"
-            class="w-full pl-10 pr-10 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
-            @input="handleSearchInput"
+            type="text"
+            placeholder="搜索历史记录..."
+            class="search-input"
+            @input="handleSearch"
           />
-          <svg class="w-5 h-5 text-gray-400 absolute left-3 top-1/2 transform -translate-y-1/2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
+          <svg class="search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="11" cy="11" r="8"></circle>
+            <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
           </svg>
-          <button v-if="searchQuery" @click="clearSearch" class="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600">
-            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
-            </svg>
-          </button>
-        </div>
-        
-        <div class="flex gap-2 items-center">
-          <DatePicker :model-value="selectedDate" @select="handleDateSelect" @today="handleTodaySelect" @dateChange="handleDateChange" />
-          <button @click="toggleTheme" class="p-2 rounded-lg border border-gray-300 dark:border-gray-600 hover:bg-gray-100 dark:hover:bg-gray-700" :title="darkMode ? t('lightMode') : t('darkMode')">
-            <svg v-if="darkMode" class="w-5 h-5 text-yellow-400" fill="currentColor" viewBox="0 0 20 20">
-              <path fill-rule="evenodd" d="M10 2a1 1 0 011 1v1a1 1 0 11-2 0V3a1 1 0 011-1zm4 8a4 4 0 11-8 0 4 4 0 018 0zm-.464 4.95l.707.707a1 1 0 001.414-1.414l-.707-.707a1 1 0 00-1.414 1.414zm2.12-10.607a1 1 0 010 1.414l-.706.707a1 1 0 11-1.414-1.414l.707-.707a1 1 0 011.414 0zM17 11a1 1 0 100-2h-1a1 1 0 100 2h1zm-7 4a1 1 0 011 1v1a1 1 0 11-2 0v-1a1 1 0 011-1zM5.05 6.464A1 1 0 106.465 5.05l-.708-.707a1 1 0 00-1.414 1.414l.707.707zm1.414 8.486l-.707.707a1 1 0 01-1.414-1.414l.707-.707a1 1 0 011.414 1.414zM4 11a1 1 0 100-2H3a1 1 0 000 2h1z" clip-rule="evenodd"></path>
-            </svg>
-            <svg v-else class="w-5 h-5 text-gray-700 dark:text-gray-300" fill="currentColor" viewBox="0 0 20 20">
-              <path d="M17.293 13.293A8 8 0 016.707 2.707a8.001 8.001 0 1010.586 10.586z"></path>
-            </svg>
-          </button>
         </div>
       </div>
     </header>
 
-    <main class="max-w-7xl mx-auto p-4">
-      <div class="mb-4 flex flex-col sm:flex-row justify-between items-center gap-4">
-        <div class="flex items-center gap-4">
-          <div class="text-sm text-gray-600 dark:text-gray-400">
-            {{ t('totalHistory') }}: <span class="font-semibold text-gray-800 dark:text-gray-200">{{ totalHistoryCount }}</span>
-          </div>
-          <div v-if="isSearching" class="text-sm text-blue-600 dark:text-blue-400">
-            {{ t('searchResultsFor') }}: "<span class="font-semibold">{{ searchQuery }}</span>"
-          </div>
+    <div class="toolbar">
+      <div class="toolbar-row">
+        <div class="time-filters">
+          <button
+            v-for="filter in timeFilters"
+            :key="filter.id"
+            :class="['time-filter-button', { active: activeTimeFilter === filter.id }]"
+            @click="setTimeFilter(filter.id)"
+          >
+            {{ filter.label }}
+          </button>
         </div>
-        <button @click="confirmClearHistory" class="btn-secondary text-red-600 dark:text-red-400 hover:text-red-800 flex items-center gap-2">
-          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
-          </svg>
-          {{ t('clearHistory') }}
-        </button>
+        <div class="actions">
+          <button v-if="selectedItems.size > 0" class="action-button delete-selected" @click="deleteSelected">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <polyline points="3 6 5 6 21 6"></polyline>
+              <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+            </svg>
+            删除选中 ({{ selectedItems.size }})
+          </button>
+          <button class="action-button" @click="clearHistory">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <polyline points="3 6 5 6 21 6"></polyline>
+              <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+            </svg>
+            清除历史记录
+          </button>
+        </div>
       </div>
+    </div>
 
-      <div v-if="loading" class="flex justify-center items-center py-12">
+    <main class="content" ref="contentRef" @scroll="handleScroll">
+      <div v-if="loading" class="loading">
         <div class="loading-spinner"></div>
-        <span class="ml-2 text-gray-600 dark:text-gray-300">{{ t('loading') }}</span>
+        <p>加载中...</p>
       </div>
-
-      <div v-else-if="historyGroups.length === 0" class="text-center py-12 text-gray-500 dark:text-gray-400">
-        {{ t('noHistory') }}
+      <div v-else-if="historyItems.length === 0" class="empty-state">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+          <circle cx="12" cy="12" r="10"></circle>
+          <polyline points="12 6 12 12 16 14"></polyline>
+        </svg>
+        <h2>没有历史记录</h2>
+        <p>您的浏览历史记录将显示在这里</p>
       </div>
-
-      <div v-else class="space-y-0">
-        <div v-for="(group, date) in historyGroups" :key="date" class="history-group" :data-date-key="date">
-          <h2 class="date-header">{{ formatDateHeading(date) }}</h2>
-          <div class="divide-y divide-gray-100 dark:divide-gray-700">
-            <div v-for="item in group" :key="item.id" class="history-item">
-              <img :src="getFaviconUrl(item.url)" :data-url="item.url" :data-title="item.title || ''" :alt="item.title || item.url" class="favicon" @error="handleFaviconError" />
-              <div class="item-content">
-                <a :href="item.url" target="_blank" class="item-title" v-html="highlightText(item.title || item.url, searchQuery)"></a>
-                <span class="item-url" :title="item.url" v-html="highlightText(item.url, searchQuery)"></span>
-              </div>
-              <span class="item-time">{{ formatTime(item.lastVisitTime) }}</span>
-              <button @click="deleteSingleHistory(item)" class="delete-btn" :title="t('delete')">
-                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
+      <div v-else class="history-list">
+        <div 
+          v-for="(group, dateKey) in groupedHistory" 
+          :key="dateKey" 
+          class="history-group"
+          :data-date-yesterday="formatDateHeader(dateKey) === '昨天' ? 'true' : null"
+        >
+          <div class="group-date">{{ formatDateHeader(dateKey) }}</div>
+          <div class="group-items">
+            <div
+              v-for="item in group"
+              :key="item.id"
+              class="history-item"
+              :class="{ selected: selectedItems.has(item.id) }"
+              @click="openItem(item.url)"
+            >
+              <input
+                type="checkbox"
+                class="item-checkbox"
+                :checked="selectedItems.has(item.id)"
+                @click.stop
+                @change="toggleSelection(item.id)"
+              />
+              <img
+                :src="getFaviconUrl(item.url)"
+                :alt="item.title"
+                class="favicon"
+                @error="(event) => handleFaviconError(event, item.url)"
+              />
+              <div class="item-title" :title="item.title || item.url" v-html="highlightText(item.title || item.url)"></div>
+              <div class="item-url" :title="item.url" v-html="highlightText(item.url)"></div>
+              <div class="item-time">{{ formatTime(item.lastVisitTime) }}</div>
+              <button class="delete-button" @click.stop="deleteItem(item.id)">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <line x1="18" y1="6" x2="6" y2="18"></line>
+                  <line x1="6" y1="6" x2="18" y2="18"></line>
                 </svg>
               </button>
             </div>
           </div>
         </div>
       </div>
-
-      <div ref="loadMoreTriggerTop" v-show="historyItems.length > 0 && selectedDate" class="mt-6 text-center h-10">
-      </div>
-      <div ref="loadMoreTrigger" v-show="historyItems.length > 0" class="mt-6 text-center h-10">
-      </div>
-      <div v-if="loadingMore" class="mt-6 text-center">
-        <span class="text-gray-500 dark:text-gray-400">{{ t('loading') }}...</span>
+      <div v-if="loadingMore" class="loading-more">
+        <div class="loading-spinner small"></div>
+        <p>加载更多...</p>
       </div>
     </main>
-
-    <div v-if="showConfirmModal" class="modal-overlay" @click.self="cancelClearHistory">
-      <div class="modal-content bg-white dark:bg-gray-800 rounded-lg p-6 max-w-md w-full">
-        <h3 class="text-lg font-medium text-gray-900 dark:text-white mb-2">{{ t('clearHistory') }}</h3>
-        <p class="text-gray-600 dark:text-gray-300 mb-4">{{ t('clearHistoryWarning') }}</p>
-        <div class="flex justify-end space-x-3">
-          <button @click="cancelClearHistory" class="px-4 py-2 bg-gray-100 dark:bg-gray-700 rounded-lg">{{ t('cancel') }}</button>
-          <button @click="executeClearHistory" class="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg">{{ t('confirm') }}</button>
-        </div>
-      </div>
-    </div>
-
-    <div v-if="showToast" class="toast bg-gray-900 dark:bg-gray-700 text-white px-4 py-2 rounded-lg shadow-lg">{{ toastMessage }}</div>
   </div>
 </template>
 
-<script>
-import { ref, computed, onMounted, onUnmounted, inject, nextTick } from 'vue'
-import DatePicker from '@/components/DatePicker.vue'
-import { highlightText, debounce } from '@/utils/helpers'
+<script setup>
+import { ref, computed, onMounted, nextTick } from 'vue'
 
-export default {
-  name: 'HistoryView',
-  components: { DatePicker },
-  setup() {
-    const t = inject('t')
-    const searchInput = ref(null)
-    const loadMoreTrigger = ref(null)
-    const loadMoreTriggerTop = ref(null)
-    const historyItems = ref([])
-    const searchQuery = ref('')
-    const loading = ref(false)
-    const loadingMore = ref(false)
-    const darkMode = ref(false)
-    const selectedDate = ref(null)
-    const selectedRange = ref('all')
-    const showConfirmModal = ref(false)
-    const currentPage = ref(1)
-    const nextPage = ref(1)
-    const itemsPerPage = ref(50)
-    const totalHistoryCount = ref(0)
-    const isSearching = ref(false)
-    const showToast = ref(false)
-    const toastMessage = ref('')
-    const systemThemeListener = ref(null)
+const searchQuery = ref('')
+const activeTimeFilter = ref('week')
+const historyItems = ref([])
+const loading = ref(true)
+const selectedItems = ref(new Set())
+const searchInputRef = ref(null)
+const loadingMore = ref(false)
+const hasMoreData = ref(true)
+const hasPreviousData = ref(false)
+const currentFilterStartTime = ref(0)
+const endTime = ref(0)
+const contentRef = ref(null)
 
-    const initDarkMode = () => {
-      const stored = localStorage.getItem('darkMode')
-      if (stored !== null) {
-        darkMode.value = stored === 'true'
+const timeFilters = [
+  { id: 'today', label: '今天' },
+  { id: 'yesterday', label: '昨天' },
+  { id: 'week', label: '本周' },
+  { id: 'month', label: '本月' },
+  { id: 'all', label: '全部' },
+]
+
+onMounted(() => {
+  loadHistory()
+  nextTick(() => {
+    searchInputRef.value?.focus()
+  })
+})
+
+async function loadHistory() {
+  loading.value = true
+  const { startTime, endTime: filterEndTime } = getTimeRangeByFilter(activeTimeFilter.value)
+  currentFilterStartTime.value = startTime
+  
+  try {
+    if (typeof chrome !== 'undefined' && chrome.history) {
+      let allItems = []
+      
+      if (activeTimeFilter.value === 'yesterday') {
+        const today = new Date()
+        today.setHours(0, 0, 0, 0)
+        const yesterday = new Date(today)
+        yesterday.setDate(yesterday.getDate() - 1)
+        
+        const [yesterdayResults, todayResults] = await Promise.all([
+          chrome.history.search({
+            text: '',
+            maxResults: 5000,
+            startTime: yesterday.getTime(),
+            endTime: today.getTime()
+          }),
+          chrome.history.search({
+            text: '',
+            maxResults: 5000,
+            startTime: today.getTime()
+          })
+        ])
+        
+        const yesterdayItems = yesterdayResults
+          .filter(item => item.url && !item.url.startsWith('chrome://'))
+        
+        const todayItems = todayResults
+          .filter(item => item.url && !item.url.startsWith('chrome://'))
+        
+        allItems = [...yesterdayItems, ...todayItems]
+          .sort((a, b) => b.lastVisitTime - a.lastVisitTime)
       } else {
-        darkMode.value = window.matchMedia('(prefers-color-scheme: dark)').matches
-      }
-      applyTheme()
-    }
-
-    const applyTheme = () => {
-      if (darkMode.value) {
-        document.documentElement.classList.add('dark')
-        localStorage.setItem('darkMode', 'true')
-      } else {
-        document.documentElement.classList.remove('dark')
-        localStorage.setItem('darkMode', 'false')
-      }
-    }
-
-    const toggleTheme = () => {
-      darkMode.value = !darkMode.value
-      applyTheme()
-    }
-
-    const getFaviconUrl = (url) => {
-      if (!url) return ''
-      // 使用 Chrome 扩展内置的 favicon API
-      if (chrome?.runtime?.getURL) {
-        const encodedUrl = encodeURIComponent(url)
-        return chrome.runtime.getURL(`/_favicon/?pageUrl=${encodedUrl}&size=32`)
-      }
-      // 降级：直接获取 favicon.ico
-      const domain = new URL(url).hostname
-      return `https://${domain}/favicon.ico`
-    }
-
-    const fetchFavicon = async (url) => {
-      if (!url) return null
-      const domain = new URL(url).hostname
-      
-      // 内网 IP 直接跳过
-      if (/^(\d{1,3}\.){3}\d{1,3}$/.test(domain)) return null
-      
-      // 尝试获取 favicon.ico
-      try {
-        const controller = new AbortController()
-        const timeoutId = setTimeout(() => controller.abort(), 2000)
+        let queryStartTime = startTime
+        let queryEndTime = filterEndTime || undefined
         
-        const response = await fetch(`https://${domain}/favicon.ico`, { 
-          mode: 'cors', 
-          signal: controller.signal 
+        const results = await chrome.history.search({
+          text: '',
+          maxResults: 5000,
+          startTime: queryStartTime,
+          endTime: queryEndTime
         })
-        clearTimeout(timeoutId)
         
-        if (response.ok) {
-          const blob = await response.blob()
-          return URL.createObjectURL(blob)
-        }
-      } catch (e) {
-        // fetch 失败，继续尝试其他方式
+        allItems = results
+          .filter(item => item.url && !item.url.startsWith('chrome://'))
+          .sort((a, b) => b.lastVisitTime - a.lastVisitTime)
       }
-      return null
-    }
-
-    const handleFaviconError = async (event) => {
-      const img = event.target
-      const url = img.dataset.url
-      const title = img.dataset.title
-      if (url && !img.dataset.tried) {
-        img.dataset.tried = 'true'
-        
-        try {
-          const faviconUrl = await fetchFavicon(url)
-          if (faviconUrl) {
-            img.src = faviconUrl
-            return
-          }
-        } catch (e) {
-          // 静默处理
-        }
-        
-        // 降级：显示标题首字符图标
-        const firstChar = title ? title.charAt(0).toUpperCase() : url.charAt(0).toUpperCase()
-        const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 32 32"><rect width="32" height="32" rx="4" fill="#f3f4f6"/><text x="16" y="22" font-size="14" text-anchor="middle" fill="#6b7280" font-family="Arial,sans-serif" font-weight="600">${firstChar}</text></svg>`
-        img.src = `data:image/svg+xml,${encodeURIComponent(svg)}`
-      }
-    }
-
-    const formatDateHeading = (timestamp) => {
-      const date = new Date(Number(timestamp))
-      const today = new Date()
-      const yesterday = new Date(today)
-      yesterday.setDate(yesterday.getDate() - 1)
-      if (date.toDateString() === today.toDateString()) return 'Today'
-      if (date.toDateString() === yesterday.toDateString()) return 'Yesterday'
-      return date.toLocaleDateString(undefined, { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })
-    }
-
-    const formatTime = (timestamp) => {
-      return new Date(timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-    }
-
-    const showToastMessage = (message) => {
-      toastMessage.value = message
-      showToast.value = true
-      setTimeout(() => { showToast.value = false }, 3000)
-    }
-
-    const loadHistory = async (page = 1, append = false, loadNext = false) => {
-      if (page === 1) loading.value = true
-      else loadingMore.value = true
       
-      try {
-        const text = searchQuery.value.trim()
-        let startTime = 0, endTime = Date.now()
+      historyItems.value = allItems
+      
+      if (allItems.length > 0) {
+        const lastItemTime = allItems[allItems.length - 1].lastVisitTime
+        endTime.value = lastItemTime
         
-        if (selectedDate.value && !loadNext) {
-          const date = new Date(selectedDate.value)
-          console.log('selectedDate query:', { selectedDate: selectedDate.value, date: date.toISOString() })
-          const year = date.getFullYear()
-          const month = date.getMonth()
-          const day = date.getDate()
-          const start = new Date(year, month, day, 0, 0, 0, 0)
-          const end = new Date(year, month, day, 23, 59, 59, 999)
-          console.log('selectedDate range:', { start: start.toISOString(), end: end.toISOString() })
-          startTime = start.getTime()
-          endTime = end.getTime()
-        } else if (selectedRange.value === 'today') {
-          startTime = new Date(new Date().setHours(0, 0, 0, 0)).getTime()
-        } else if (selectedRange.value === 'yesterday') {
-          const yesterday = new Date()
-          yesterday.setDate(yesterday.getDate() - 1)
-          startTime = new Date(yesterday.setHours(0, 0, 0, 0)).getTime()
-          endTime = new Date(yesterday.setHours(23, 59, 59, 999)).getTime()
-        } else if (selectedRange.value === 'week') {
-          const weekAgo = new Date()
-          weekAgo.setDate(weekAgo.getDate() - 7)
-          startTime = weekAgo.getTime()
-        } else if (selectedRange.value === 'month') {
-          const monthAgo = new Date()
-          monthAgo.setMonth(monthAgo.getMonth() - 1)
-          startTime = monthAgo.getTime()
-        }
-        
-        let maxResults = itemsPerPage.value
-        let appendEndTime = null
-        let customStartTime = null
-        let customEndTime = null
-        
-        if (append && !loadNext && historyItems.value.length > 0) {
-          const lastItem = historyItems.value[historyItems.value.length - 1]
-          appendEndTime = lastItem.lastVisitTime
-        }
-        
-        if (loadNext && selectedDate.value && historyItems.value.length > 0) {
-          const firstItem = historyItems.value[0]
-          customStartTime = firstItem.lastVisitTime
-          customEndTime = Date.now()
-          maxResults = itemsPerPage.value
-        }
-        
-        const queryStartTime = customStartTime !== null ? customStartTime : startTime
-        const queryEndTime = customEndTime !== null ? customEndTime : (appendEndTime || endTime)
-        
-        const results = await chrome.history.search({ text, startTime: queryStartTime, endTime: queryEndTime, maxResults: maxResults })
-        console.log('loadHistory:', { page, append, loadNext, resultsLength: results.length, maxResults, 
-          queryStartTime: queryStartTime ? new Date(queryStartTime).toISOString() : '0',
-          queryEndTime: new Date(queryEndTime).toISOString(),
-          firstItemTimestamp: historyItems.value[0] ? new Date(historyItems.value[0].lastVisitTime).toISOString() : 'N/A'
-        })
-        let sortedResults = results.sort((a, b) => b.lastVisitTime - a.lastVisitTime)
-        
-        if (loadNext && selectedDate.value && historyItems.value.length > 0) {
-          const firstTimestamp = historyItems.value[0].lastVisitTime
-          console.log('loadNext filter:', { firstTimestamp, beforeFilter: sortedResults.length })
-          sortedResults = sortedResults.filter(item => item.lastVisitTime > firstTimestamp)
-          console.log('loadNext filter after:', sortedResults.length)
-          if (sortedResults.length > 0) {
-            historyItems.value = [...sortedResults, ...historyItems.value]
-          }
-        } else if (append) {
-          historyItems.value = [...historyItems.value, ...sortedResults]
+        if (activeTimeFilter.value === 'all') {
+          hasMoreData.value = allItems.length >= 5000
+        } else if (activeTimeFilter.value === 'yesterday') {
+          hasMoreData.value = true
         } else {
-          historyItems.value = sortedResults
+          hasMoreData.value = true
         }
-        
-        const hasMoreRecords = sortedResults.length >= itemsPerPage.value
-        if (page === 1) {
-          totalHistoryCount.value = hasMoreRecords ? itemsPerPage.value + 1 : sortedResults.length
-        } else if (append && hasMoreRecords) {
-          totalHistoryCount.value = historyItems.value.length + 1
-        }
-      } catch (error) {
-        console.error('Error loading history:', error)
-        showToastMessage(t('errorLoadingHistory'))
-      } finally {
-        if (page === 1) loading.value = false
-        else loadingMore.value = false
+        hasPreviousData.value = false
+      } else {
+        hasMoreData.value = false
+        hasPreviousData.value = false
       }
+    } else {
+      historyItems.value = getMockHistory()
+      hasMoreData.value = false
+      hasPreviousData.value = false
     }
+  } catch (error) {
+    console.error('Failed to load history:', error)
+    historyItems.value = getMockHistory()
+    hasMoreData.value = false
+    hasPreviousData.value = false
+  }
+  loading.value = false
+}
 
-    const handleSearchInput = debounce(() => {
-      isSearching.value = searchQuery.value.trim() !== ''
-      currentPage.value = 1
-      loadHistory(1, false)
-    }, 300)
-
-    const clearSearch = () => {
-      searchQuery.value = ''
-      isSearching.value = false
-      currentPage.value = 1
-      loadHistory(1, false)
-    }
-
-    const handleDateSelect = (date) => {
-      selectedDate.value = date
-      selectedRange.value = 'all'
-      currentPage.value = 1
-      loadHistory(1, false).then(() => {
-        scrollToDateGroup(date)
+async function checkPreviousPeriod() {
+  if (activeTimeFilter.value === 'yesterday') {
+    const today = new Date()
+    today.setHours(0, 0, 0, 0)
+    try {
+      const results = await chrome.history.search({
+        text: '',
+        maxResults: 1,
+        startTime: today.getTime()
       })
-    }
-
-    const handleDateChange = (date) => {
-      selectedDate.value = date
-      selectedRange.value = 'all'
-      currentPage.value = 1
-      loadHistory(1, false).then(() => {
-        scrollToDateGroup(date)
-      })
-    }
-
-    const scrollToDateGroup = (date) => {
-      nextTick(() => {
-        const targetDate = new Date(date)
-        const dateKey = new Date(targetDate.getFullYear(), targetDate.getMonth(), targetDate.getDate()).setHours(0, 0, 0, 0)
-        const element = document.querySelector(`[data-date-key="${dateKey}"]`)
-        if (element) {
-          element.scrollIntoView({ behavior: 'auto', block: 'start' })
-        }
-      })
-    }
-
-    const handleTodaySelect = () => {
-      selectedDate.value = null
-      selectedRange.value = 'today'
-      currentPage.value = 1
-      loadHistory(1, false)
-    }
-
-    const handleRangeChange = async () => {
-      selectedDate.value = null
-      currentPage.value = 1
-      await loadHistory(1, false)
-    }
-
-    const loadMore = async () => {
-      currentPage.value++
-      await loadHistory(currentPage.value, true)
-    }
-
-    const loadMoreNext = async () => {
-      if (!selectedDate.value) return
-      nextPage.value++
-      await loadHistory(nextPage.value, true, true)
-    }
-
-    const confirmClearHistory = () => { showConfirmModal.value = true }
-    const cancelClearHistory = () => { showConfirmModal.value = false }
-
-    const executeClearHistory = async () => {
-      try {
-        await chrome.history.deleteAll()
-        historyItems.value = []
-        totalHistoryCount.value = 0
-        showToastMessage(t('historyCleared'))
-      } catch (error) {
-        console.error('Error clearing history:', error)
-      } finally {
-        showConfirmModal.value = false
-      }
-    }
-
-    const deleteSingleHistory = async (item) => {
-      try {
-        await chrome.history.deleteUrl({ url: item.url })
-        historyItems.value = historyItems.value.filter(h => h.id !== item.id)
-        totalHistoryCount.value--
-        showToastMessage(t('itemDeleted'))
-      } catch (error) {
-        console.error('Error deleting:', error)
-      }
-    }
-
-    const historyGroups = computed(() => {
-      const groups = {}
-      historyItems.value.forEach(item => {
-        const dateKey = new Date(new Date(item.lastVisitTime).setHours(0, 0, 0, 0)).getTime()
-        if (!groups[dateKey]) groups[dateKey] = []
-        groups[dateKey].push(item)
-      })
-      return Object.keys(groups).sort((a, b) => b - a).reduce((obj, key) => { obj[key] = groups[key]; return obj }, {})
-    })
-
-    const hasMore = computed(() => {
-      const result = historyItems.value.length < totalHistoryCount.value
-      console.log('hasMore computed:', { historyLength: historyItems.value.length, totalCount: totalHistoryCount.value, hasMore: result })
-      return result
-    })
-    const refreshHistory = () => { if (searchQuery.value === '' && !selectedDate.value) loadHistory() }
-
-    onMounted(() => {
-      initDarkMode()
-      loadHistory()
-      nextTick(() => {
-        searchInput.value?.focus()
-        
-        const observer = new IntersectionObserver((entries) => {
-          console.log('IntersectionObserver:', entries[0]?.isIntersecting, 'hasMore:', hasMore.value, 'loadingMore:', loadingMore.value)
-          if (entries[0]?.isIntersecting && !loadingMore.value && hasMore.value) {
-            console.log('Loading more...')
-            loadMore()
-          }
-        }, { rootMargin: '100px' })
-        
-        const observerTop = new IntersectionObserver((entries) => {
-          console.log('IntersectionObserverTop:', entries[0]?.isIntersecting, 'loadingMore:', loadingMore.value)
-          if (entries[0]?.isIntersecting && !loadingMore.value && selectedDate.value) {
-            console.log('Loading more next...')
-            loadMoreNext()
-          }
-        }, { rootMargin: '100px' })
-        
-        if (loadMoreTrigger.value) {
-          console.log('Observing loadMoreTrigger')
-          observer.observe(loadMoreTrigger.value)
-        }
-        if (loadMoreTriggerTop.value) {
-          console.log('Observing loadMoreTriggerTop')
-          observerTop.observe(loadMoreTriggerTop.value)
-        }
-      })
-      systemThemeListener.value = window.matchMedia('(prefers-color-scheme: dark)')
-      systemThemeListener.value.addEventListener('change', (e) => {
-        if (localStorage.getItem('darkMode') === null) {
-          darkMode.value = e.matches
-          applyTheme()
-        }
-      })
-      if (chrome?.history?.onVisited) chrome.history.onVisited.addListener(refreshHistory)
-    })
-
-    onUnmounted(() => {
-      if (systemThemeListener.value) systemThemeListener.value.removeEventListener('change', () => {})
-      if (chrome?.history?.onVisited) chrome.history.onVisited.removeListener(refreshHistory)
-    })
-
-    return {
-      searchInput,
-      loadMoreTrigger,
-      loadMoreTriggerTop,
-      historyItems, historyGroups, searchQuery, loading, loadingMore, darkMode, selectedDate, selectedRange,
-      showConfirmModal, totalHistoryCount, hasMore, isSearching, showToast, toastMessage,
-      getFaviconUrl, handleFaviconError, formatDateHeading, formatTime, highlightText, t,
-      handleSearchInput, clearSearch, handleDateSelect, handleDateChange, handleTodaySelect, handleRangeChange, scrollToDateGroup,
-      loadMore, loadMoreNext, confirmClearHistory, cancelClearHistory, executeClearHistory, deleteSingleHistory, toggleTheme
+      return results.length > 0
+    } catch (e) {
+      return false
     }
   }
+  if (activeTimeFilter.value === 'week') {
+    const today = new Date()
+    today.setHours(0, 0, 0, 0)
+    const yesterday = new Date(today)
+    yesterday.setDate(yesterday.getDate() - 1)
+    try {
+      const results = await chrome.history.search({
+        text: '',
+        maxResults: 1,
+        startTime: yesterday.getTime(),
+        endTime: today.getTime()
+      })
+      return results.length > 0
+    } catch (e) {
+      return false
+    }
+  }
+  if (activeTimeFilter.value === 'month') {
+    const today = new Date()
+    today.setHours(0, 0, 0, 0)
+    const weekAgo = new Date(today)
+    weekAgo.setDate(weekAgo.getDate() - 7)
+    try {
+      const results = await chrome.history.search({
+        text: '',
+        maxResults: 1,
+        startTime: weekAgo.getTime(),
+        endTime: today.getTime()
+      })
+      return results.length > 0
+    } catch (e) {
+      return false
+    }
+  }
+  if (activeTimeFilter.value === 'today') {
+    return false
+  }
+  return false
+}
+
+function getTimeRangeByFilter(filter) {
+  const now = Date.now()
+  const today = new Date(now)
+  today.setHours(0, 0, 0, 0)
+  
+  switch (filter) {
+    case 'today':
+      return { startTime: today.getTime(), endTime: now }
+    case 'yesterday': {
+      const yesterday = new Date(today)
+      yesterday.setDate(yesterday.getDate() - 1)
+      return { startTime: yesterday.getTime(), endTime: today.getTime() }
+    }
+    case 'week': {
+      const weekAgo = new Date(today)
+      weekAgo.setDate(weekAgo.getDate() - 7)
+      return { startTime: weekAgo.getTime(), endTime: now }
+    }
+    case 'month': {
+      const monthAgo = new Date(today)
+      monthAgo.setMonth(monthAgo.getMonth() - 1)
+      return { startTime: monthAgo.getTime(), endTime: now }
+    }
+    case 'all':
+    default:
+      const ninetyDaysAgo = new Date(now)
+      ninetyDaysAgo.setDate(ninetyDaysAgo.getDate() - 90)
+      return { startTime: ninetyDaysAgo.getTime(), endTime: now }
+  }
+}
+
+async function loadMoreHistory() {
+  if (loadingMore.value) {
+    return
+  }
+  
+  loadingMore.value = true
+  
+  const { startTime } = getTimeRangeByFilter(activeTimeFilter.value)
+  
+  try {
+    if (typeof chrome !== 'undefined' && chrome.history) {
+      let fetchStartTime = 0
+      let fetchEndTime = endTime.value
+      
+      if (activeTimeFilter.value === 'today') {
+        fetchStartTime = 0
+        fetchEndTime = startTime
+      } else if (activeTimeFilter.value === 'yesterday') {
+        fetchStartTime = 0
+        fetchEndTime = startTime
+      } else if (activeTimeFilter.value !== 'all') {
+        fetchStartTime = 0
+        fetchEndTime = startTime
+      }
+      
+      const moreResults = await chrome.history.search({
+        text: '',
+        maxResults: 500,
+        startTime: fetchStartTime,
+        endTime: fetchEndTime
+      })
+      
+      let newItems = moreResults
+        .filter(item => item.url && !item.url.startsWith('chrome://'))
+        .sort((a, b) => b.lastVisitTime - a.lastVisitTime)
+      
+      const existingUrls = new Set(historyItems.value.map(i => i.url))
+      const uniqueNewItems = newItems.filter(item => !existingUrls.has(item.url))
+      
+      if (uniqueNewItems.length > 0) {
+        historyItems.value = [...historyItems.value, ...uniqueNewItems]
+        
+        const lastItemTime = uniqueNewItems[uniqueNewItems.length - 1].lastVisitTime
+        
+        if (uniqueNewItems.length < 500) {
+          hasMoreData.value = false
+        } else {
+          endTime.value = lastItemTime
+        }
+      } else {
+        hasMoreData.value = false
+      }
+    }
+  } catch (error) {
+    console.error('Failed to load more history:', error)
+  }
+  
+  loadingMore.value = false
+}
+
+async function loadPreviousPeriod() {
+  if (loadingMore.value || activeTimeFilter.value === 'all') return
+  if (!hasPreviousData.value) return
+  
+  loadingMore.value = true
+  
+  let prevFilter = ''
+  if (activeTimeFilter.value === 'today') {
+    prevFilter = 'yesterday'
+  } else if (activeTimeFilter.value === 'yesterday') {
+    prevFilter = 'week'
+  } else if (activeTimeFilter.value === 'week') {
+    prevFilter = 'month'
+  } else if (activeTimeFilter.value === 'month') {
+    prevFilter = 'all'
+  }
+  
+  if (!prevFilter) {
+    loadingMore.value = false
+    return
+  }
+  
+  const currentRange = getTimeRangeByFilter(activeTimeFilter.value)
+  const prevRange = getTimeRangeByFilter(prevFilter)
+  
+  try {
+    if (typeof chrome !== 'undefined' && chrome.history) {
+      const results = await chrome.history.search({
+        text: '',
+        maxResults: 500,
+        startTime: prevRange.startTime,
+        endTime: currentRange.startTime
+      })
+      
+      let newItems = results
+        .filter(item => item.url && !item.url.startsWith('chrome://'))
+        .sort((a, b) => b.lastVisitTime - a.lastVisitTime)
+      
+      const existingUrls = new Set(historyItems.value.map(i => i.url))
+      const uniqueNewItems = newItems.filter(item => !existingUrls.has(item.url))
+      
+      if (uniqueNewItems.length > 0) {
+        historyItems.value = [...uniqueNewItems, ...historyItems.value]
+      }
+    }
+  } catch (error) {
+    console.error('Failed to load previous period data:', error)
+  }
+  loadingMore.value = false
+}
+
+let lastScrollTop = 0
+
+function handleScroll(event) {
+  const target = event.target
+  const scrollTop = target.scrollTop
+  const scrollBottom = target.scrollHeight - target.scrollTop - target.clientHeight
+  
+  if (scrollBottom < 20 && !loadingMore.value) {
+    loadMoreHistory()
+  }
+  
+  if (scrollTop < 50 && lastScrollTop <= 50 && hasPreviousData.value) {
+    loadPreviousPeriod()
+  }
+  
+  lastScrollTop = scrollTop
+}
+
+function getMockHistory() {
+  const now = Date.now()
+  const sites = [
+    { url: 'https://github.com', title: 'GitHub' },
+    { url: 'https://stackoverflow.com', title: 'Stack Overflow' },
+    { url: 'https://developer.mozilla.org', title: 'MDN Web Docs' },
+    { url: 'https://vuejs.org', title: 'Vue.js' },
+    { url: 'https://tailwindcss.com', title: 'Tailwind CSS' },
+    { url: 'https://www.google.com', title: 'Google' },
+    { url: 'https://www.youtube.com', title: 'YouTube' },
+    { url: 'https://www.wikipedia.org', title: 'Wikipedia' },
+  ]
+  return sites.map((site, index) => ({
+    id: index + 1,
+    url: site.url,
+    title: site.title,
+    lastVisitTime: now - index * 3600000 * Math.random() * 24
+  }))
+}
+
+const groupedHistory = computed(() => {
+  const groups = {}
+  let filtered = historyItems.value
+
+  if (searchQuery.value.trim()) {
+    const query = searchQuery.value.toLowerCase()
+    filtered = filtered.filter(item =>
+      (item.title && item.title.toLowerCase().includes(query)) ||
+      item.url.toLowerCase().includes(query)
+    )
+  }
+
+  filtered.forEach(item => {
+    const dateKey = new Date(item.lastVisitTime).toDateString()
+    if (!groups[dateKey]) {
+      groups[dateKey] = []
+    }
+    groups[dateKey].push(item)
+  })
+
+  return groups
+})
+
+function handleSearch() {
+}
+
+function highlightText(text) {
+  if (!text || !searchQuery.value.trim()) {
+    return text
+  }
+  const query = searchQuery.value.trim()
+  const regex = new RegExp(`(${escapeRegExp(query)})`, 'gi')
+  return text.replace(regex, '<mark>$1</mark>')
+}
+
+function escapeRegExp(string) {
+  return string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+}
+
+function setTimeFilter(filterId) {
+  activeTimeFilter.value = filterId
+  
+  if (filterId === 'yesterday') {
+    loadHistory().then(() => {
+      nextTick(() => {
+        setTimeout(() => {
+          const yesterdayGroup = document.querySelector('[data-date-yesterday="true"]')
+          if (yesterdayGroup) {
+            yesterdayGroup.scrollIntoView({ behavior: 'auto', block: 'start' })
+          }
+        }, 100)
+      })
+    })
+  } else {
+    loadHistory()
+  }
+}
+
+function openItem(url) {
+  if (typeof chrome !== 'undefined' && chrome.tabs) {
+    chrome.tabs.create({ url })
+  } else {
+    window.open(url, '_blank')
+  }
+}
+
+function deleteItem(id) {
+  if (typeof chrome !== 'undefined' && chrome.history) {
+    const item = historyItems.value.find(i => i.id === id)
+    if (item) {
+      chrome.history.deleteUrl({ url: item.url })
+    }
+  }
+  historyItems.value = historyItems.value.filter(i => i.id !== id)
+  selectedItems.value.delete(id)
+}
+
+function toggleSelection(id) {
+  if (selectedItems.value.has(id)) {
+    selectedItems.value.delete(id)
+  } else {
+    selectedItems.value.add(id)
+  }
+  selectedItems.value = new Set(selectedItems.value)
+}
+
+function deleteSelected() {
+  if (selectedItems.value.size === 0) return
+  
+  if (confirm(`确定要删除选中的 ${selectedItems.value.size} 条记录吗？`)) {
+    if (typeof chrome !== 'undefined' && chrome.history) {
+      selectedItems.value.forEach(id => {
+        const item = historyItems.value.find(i => i.id === id)
+        if (item) {
+          chrome.history.deleteUrl({ url: item.url })
+        }
+      })
+    }
+    historyItems.value = historyItems.value.filter(i => !selectedItems.value.has(i.id))
+    selectedItems.value = new Set()
+  }
+}
+
+function clearHistory() {
+  if (confirm('确定要清除所有历史记录吗？')) {
+    if (typeof chrome !== 'undefined' && chrome.history) {
+      chrome.history.deleteAll()
+    }
+    historyItems.value = []
+  }
+}
+
+function getFaviconUrl(url) {
+  try {
+    const urlObj = new URL(url)
+    const hostname = urlObj.hostname
+    
+    if (typeof chrome !== 'undefined' && chrome.runtime && chrome.runtime.getURL) {
+      try {
+        return chrome.runtime.getURL(`_favicon/?pageUrl=${encodeURIComponent(url)}&size=32`)
+      } catch (e) {
+      }
+    }
+    
+    const fallbackServices = [
+      `https://favicone.com/${hostname}?s=32`,
+      `https://icon.horse/icon/${hostname}`,
+      `https://www.google.com/s2/favicons?domain=${hostname}&sz=64`,
+      `https://favicon.yandex.net/favicon/${hostname}`,
+      `https://api.faviconkit.com/${hostname}/32`
+    ]
+    
+    return fallbackServices[0]
+  } catch {
+    return getDefaultFavicon()
+  }
+}
+
+let faviconFallbackIndex = {}
+
+function handleFaviconError(event, url) {
+  try {
+    const urlObj = new URL(url)
+    const hostname = urlObj.hostname
+    
+    if (!faviconFallbackIndex[hostname]) {
+      faviconFallbackIndex[hostname] = 1
+    } else {
+      faviconFallbackIndex[hostname]++
+    }
+    
+    const fallbackServices = [
+      `https://favicone.com/${hostname}?s=32`,
+      `https://icon.horse/icon/${hostname}`,
+      `https://www.google.com/s2/favicons?domain=${hostname}&sz=64`,
+      `https://favicon.yandex.net/favicon/${hostname}`,
+      `https://api.faviconkit.com/${hostname}/32`
+    ]
+    
+    if (faviconFallbackIndex[hostname] < fallbackServices.length) {
+      event.target.src = fallbackServices[faviconFallbackIndex[hostname]]
+    } else {
+      event.target.src = getDefaultFavicon()
+    }
+  } catch {
+    event.target.src = getDefaultFavicon()
+  }
+}
+
+function getDefaultFavicon() {
+  return 'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="%236b7280"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 17.93c-3.95-.49-7-3.85-7-7.93 0-.62.08-1.21.21-1.79L9 15v1c0 1.1.9 2 2 2v1.93zm6.9-2.54c-.26-.81-1-1.39-1.9-1.39h-1v-3c0-.55-.45-1-1-1H8v-2h2c.55 0 1-.45 1-1V8h2c1.1 0 2-.9 2-2V3.46c4.62.77 8 4.81 8 9.54 0 2.87-1.26 5.44-3.39 7.19l-.1-.2z"/></svg>'
+}
+
+function formatDateHeader(dateKey) {
+  const date = new Date(dateKey)
+  const now = new Date()
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate())
+  const yesterday = new Date(today)
+  yesterday.setDate(yesterday.getDate() - 1)
+
+  if (date.toDateString() === today.toDateString()) {
+    return '今天'
+  } else if (date.toDateString() === yesterday.toDateString()) {
+    return '昨天'
+  } else {
+    return date.toLocaleDateString('zh-CN', {
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric',
+      weekday: 'long'
+    })
+  }
+}
+
+function formatTime(timestamp) {
+  return new Date(timestamp).toLocaleTimeString('zh-CN', {
+    hour: '2-digit',
+    minute: '2-digit'
+  })
 }
 </script>
 
 <style scoped>
-.history-container {
-  min-height: 100vh;
+.history-view {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  background: #ffffff;
 }
 
-.header-bar {
-  position: sticky;
-  top: 0;
-  z-index: 50;
-  background: #ffffff;
+.header {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  padding: 1rem 2rem;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+}
+
+.header-row {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+.title {
+  font-size: 1.5rem;
+  font-weight: 600;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.search-container {
+  position: relative;
+  flex: 1;
+  max-width: 500px;
+}
+
+.search-input {
+  width: 100%;
+  padding: 0.5rem 2.5rem 0.5rem 1rem;
+  border: none;
+  border-radius: 8px;
+  font-size: 0.875rem;
+  background: rgba(255, 255, 255, 0.2);
+  color: white;
+  backdrop-filter: blur(10px);
+  transition: all 0.3s ease;
+}
+
+.search-input::placeholder {
+  color: rgba(255, 255, 255, 0.8);
+}
+
+.search-input:focus {
+  outline: none;
+  background: rgba(255, 255, 255, 0.3);
+  box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.3);
+}
+
+.search-icon {
+  position: absolute;
+  right: 0.75rem;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 1rem;
+  height: 1rem;
+  color: rgba(255, 255, 255, 0.9);
+}
+
+.toolbar {
+  background: #f9fafb;
   border-bottom: 1px solid #e5e7eb;
 }
 
-.dark .header-bar {
-  background: #1f2937;
-  border-bottom-color: #374151;
+.toolbar-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.5rem 2rem;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.time-filters {
+  display: flex;
+  gap: 0.25rem;
+  flex-wrap: wrap;
+}
+
+.time-filter-button {
+  padding: 0.25rem 0.75rem;
+  border: none;
+  border-radius: 6px;
+  background: white;
+  color: #6b7280;
+  font-size: 0.75rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+}
+
+.time-filter-button:hover {
+  background: #f3f4f6;
+  color: #374151;
+}
+
+.time-filter-button.active {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  box-shadow: 0 4px 6px -1px rgba(102, 126, 234, 0.4);
+}
+
+.actions {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.action-button {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0.25rem 0.5rem;
+  border: 1px solid #ef4444;
+  border-radius: 6px;
+  background: white;
+  color: #ef4444;
+  font-size: 0.75rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  white-space: nowrap;
+}
+
+.action-button:hover {
+  background: #fef2f2;
+}
+
+.action-button.delete-selected {
+  background: #ef4444;
+  color: white;
+}
+
+.action-button.delete-selected:hover {
+  background: #dc2626;
+}
+
+.action-button svg {
+  width: 0.75rem;
+  height: 0.75rem;
+}
+
+.content {
+  flex: 1;
+  overflow-y: auto;
+  padding: 2rem;
+}
+
+.loading {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 4rem 2rem;
+  gap: 1rem;
 }
 
 .loading-spinner {
-  border: 2px solid #e5e7eb;
-  border-top-color: #3b82f6;
+  width: 3rem;
+  height: 3rem;
+  border: 3px solid #e5e7eb;
+  border-top-color: #667eea;
   border-radius: 50%;
-  width: 20px;
-  height: 20px;
-  animation: spin 0.8s linear infinite;
+  animation: spin 1s linear infinite;
+}
+
+.loading-spinner.small {
+  width: 1.25rem;
+  height: 1.25rem;
+  border-width: 2px;
+}
+
+.loading-more {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  padding: 1rem;
+  color: #9ca3af;
+  font-size: 0.75rem;
 }
 
 @keyframes spin {
-  0% { transform: rotate(0deg); }
-  100% { transform: rotate(360deg); }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 4rem 2rem;
+  gap: 1rem;
+  text-align: center;
+  color: #6b7280;
+}
+
+.empty-state svg {
+  width: 5rem;
+  height: 5rem;
+  opacity: 0.5;
+}
+
+.empty-state h2 {
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: #374151;
+}
+
+.history-list {
+  max-width: 1200px;
+  margin: 0 auto;
 }
 
 .history-group {
-  margin-bottom: 0;
-  scroll-margin-top: 72px;
+  margin-bottom: 2rem;
 }
 
-.date-header {
-  position: sticky;
-  top: 72px;
-  z-index: 40;
-  background: #f3f4f6;
-  padding: 12px 16px;
-  margin: 0;
-  font-size: 14px;
+.group-date {
+  font-size: 0.875rem;
   font-weight: 600;
-  color: #374151;
-  border-bottom: 1px solid #e5e7eb;
+  color: #6b7280;
+  margin-bottom: 0.75rem;
+  padding-left: 0.5rem;
 }
 
-.dark .date-header {
-  background: #374151;
-  color: #f9fafb;
-  border-bottom-color: #4b5563;
+.group-items {
+  background: white;
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
 }
 
 .history-item {
   display: flex;
   align-items: center;
-  padding: 8px 16px;
-  gap: 10px;
-  background: #ffffff;
+  gap: 0.75rem;
+  padding: 0.5rem 1rem;
   border-bottom: 1px solid #f3f4f6;
+  cursor: pointer;
+  transition: background 0.2s ease;
+  white-space: nowrap;
+  overflow: hidden;
 }
 
-.dark .history-item {
-  background: #1f2937;
-  border-bottom-color: #374151;
+.history-item:last-child {
+  border-bottom: none;
 }
 
 .history-item:hover {
   background: #f9fafb;
 }
 
-.dark .history-item:hover {
-  background: #374151;
+.history-item.selected {
+  background: #eff6ff;
+}
+
+.item-checkbox {
+  width: 1rem;
+  height: 1rem;
+  cursor: pointer;
+  flex-shrink: 0;
 }
 
 .favicon {
-  width: 18px;
-  height: 18px;
+  width: 1.25rem;
+  height: 1.25rem;
+  border-radius: 4px;
   flex-shrink: 0;
-}
-
-.item-content {
-  flex: 1;
-  min-width: 0;
-  display: flex;
-  align-items: center;
-  gap: 8px;
+  background: #f3f4f6;
 }
 
 .item-title {
-  font-size: 14px;
+  font-size: 0.875rem;
   font-weight: 500;
   color: #111827;
-  text-decoration: none;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  max-width: 300px;
+  flex: 2;
+  min-width: 100px;
 }
 
-.dark .item-title {
-  color: #f9fafb;
-}
-
-.item-title:hover {
-  color: #2563eb;
-}
-
-.dark .item-title:hover {
-  color: #60a5fa;
-}
-
-.item-url {
-  font-size: 12px;
-  color: #6b7280;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  flex: 1;
-  min-width: 0;
-}
-
-.dark .item-url {
-  color: #9ca3af;
-}
-
-.item-time {
-  flex-shrink: 0;
-  font-size: 12px;
-  color: #6b7280;
-  margin-left: auto;
-  padding-left: 12px;
-}
-
-.dark .item-time {
-  color: #9ca3af;
-}
-
-.delete-btn {
-  flex-shrink: 0;
-  padding: 6px;
-  border-radius: 50%;
-  background: transparent;
-  border: none;
-  cursor: pointer;
-  color: #9ca3af;
-  opacity: 0;
-  transition: all 0.15s;
-}
-
-.dark .delete-btn {
-  color: #9ca3af;
-}
-
-.history-item:hover .delete-btn {
-  opacity: 1;
-}
-
-.delete-btn:hover {
-  background: #fee2e2;
-  color: #dc2626;
-}
-
-.dark .delete-btn:hover {
-  background: #7f1d1d;
-  color: #fca5a5;
-}
-
-.btn-primary {
-  padding: 8px 24px;
-  background: #3b82f6;
-  color: white;
-  border: none;
-  border-radius: 8px;
-  font-size: 14px;
-  font-weight: 500;
-  cursor: pointer;
-  transition: background-color 0.15s;
-}
-
-.btn-primary:hover {
-  background: #2563eb;
-}
-
-.btn-primary:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-}
-
-.btn-secondary {
-  padding: 8px 16px;
-  background: #f3f4f6;
-  color: #dc2626;
-  border: none;
-  border-radius: 8px;
-  font-size: 14px;
-  font-weight: 500;
-  cursor: pointer;
-  transition: background-color 0.15s;
-}
-
-.dark .btn-secondary {
-  background: #374151;
-  color: #f87171;
-}
-
-.btn-secondary:hover {
-  background: #e5e7eb;
-}
-
-.dark .btn-secondary:hover {
-  background: #4b5563;
-}
-
-.modal-overlay {
-  position: fixed;
-  inset: 0;
-  background: rgba(0, 0, 0, 0.5);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 100;
-  padding: 16px;
-}
-
-.toast {
-  position: fixed;
-  bottom: 16px;
-  right: 16px;
-  z-index: 50;
-}
-
-:deep(.search-highlight) {
+.item-title mark,
+.item-url mark {
   background-color: #fef08a;
+  color: inherit;
   padding: 0 2px;
   border-radius: 2px;
 }
 
-.dark :deep(.search-highlight) {
-  background-color: #854d0e;
-  color: white;
+.item-url {
+  font-size: 0.8125rem;
+  color: #6b7280;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  flex: 1;
+  min-width: 50px;
+}
+
+.item-time {
+  font-size: 0.8125rem;
+  color: #9ca3af;
+  flex-shrink: 0;
+  white-space: nowrap;
+  width: 60px;
+  text-align: right;
+}
+
+.delete-button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.5rem;
+  height: 1.5rem;
+  border: none;
+  border-radius: 4px;
+  background: transparent;
+  color: #9ca3af;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  flex-shrink: 0;
+  margin-left: 0.5rem;
+}
+
+.delete-button:hover {
+  background: #fee2e2;
+  color: #ef4444;
+}
+
+.delete-button svg {
+  width: 1.25rem;
+  height: 1.25rem;
+}
+
+@media (max-width: 768px) {
+  .header {
+    padding: 1.5rem 1rem 1rem;
+  }
+
+  .title {
+    font-size: 1.5rem;
+  }
+
+  .toolbar {
+    padding: 0.75rem 1rem;
+  }
+
+  .content {
+    padding: 1rem;
+  }
+
+  .item-url {
+    max-width: 200px;
+  }
 }
 </style>

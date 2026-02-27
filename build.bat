@@ -3,6 +3,12 @@ setlocal
 
 echo Packing My Better History extension...
 
+:: Remove dist directory
+if exist "dist" (
+    echo Removing dist directory...
+    rmdir /s /q "dist"
+)
+
 :: Check if npm is available
 where npm >nul 2>nul
 if %errorlevel% neq 0 (
