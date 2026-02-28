@@ -12,7 +12,11 @@
             class="search-input"
             @input="handleSearch"
           />
-          <svg class="search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <svg v-if="searchQuery" class="clear-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" @click="clearSearch">
+            <line x1="18" y1="6" x2="6" y2="18"></line>
+            <line x1="6" y1="6" x2="18" y2="18"></line>
+          </svg>
+          <svg v-else class="search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <circle cx="11" cy="11" r="8"></circle>
             <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
           </svg>
@@ -491,6 +495,10 @@ const groupedHistory = computed(() => {
 function handleSearch() {
 }
 
+function clearSearch() {
+  searchQuery.value = ''
+}
+
 function highlightText(text) {
   if (!text || !searchQuery.value.trim()) {
     return text
@@ -733,6 +741,21 @@ function formatTime(timestamp) {
   width: 1rem;
   height: 1rem;
   color: rgba(255, 255, 255, 0.9);
+}
+
+.clear-icon {
+  position: absolute;
+  right: 0.75rem;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 1rem;
+  height: 1rem;
+  color: rgba(255, 255, 255, 0.7);
+  cursor: pointer;
+}
+
+.clear-icon:hover {
+  color: rgba(255, 255, 255, 1);
 }
 
 .toolbar {
